@@ -22,7 +22,9 @@ export const createBlog = catchAsyncErrors(async (req, res, next) => {
     const thumbnail = file
         ? await uploadImage(getDataUri(file).content, getDataUri(file).fileName, "blog-thumbnails")
         : {};
-    const newBlog = new blogModel({ title, metaDescription, content, category, tags, thumbnail, author });
+    console.log(tags)
+    const modifiedTags = tags[0].split(",").map((str) => str.trim().replace(/(^"|"$)/g, ''));;
+    const newBlog = new blogModel({ title, metaDescription, content, category, tags: modifiedTags, thumbnail, author });
     await newBlog.save();
 
     res.status(201).json({
