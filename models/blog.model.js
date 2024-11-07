@@ -1,38 +1,44 @@
 import { Schema, model } from "mongoose";
 import { FileSchema } from "./file.model.js";
 
-
-const BlogSchema = new Schema({
+const BlogSchema = new Schema(
+  {
     title: {
-        type: String,
-        required: [true, "Please Enter Your Blog Title"],
-        maxLength: [100, "Title cannot exceed 100 characters"],
+      type: String,
+      required: [true, "Please Enter Your Blog Title"],
+      maxLength: [101, "Title cannot exceed 100 characters"],
     },
     metaDescription: {
-        type: String,
-        maxLength: [150, "Meta Description cannot exceed 150 characters"],
+      type: String,
+      maxLength: [151, "Meta Description cannot exceed 150 characters"],
     },
     content: {
-        type: String,
-        required: [true, "Please Enter Your Blog Content"],
+      type: String,
+      required: [true, "Please Enter Your Blog Content"],
     },
     category: {
-        type: String,
-        required: [true, "Please Enter Your Blog Category"],
-        maxLength: [50, "Category cannot exceed 50 characters"],
+      type: Schema.Types.ObjectId,
+      ref: "Category",
+      required: [true, "Please Enter Your Blog Category"],
+    },
+    subCategory: {
+      type: String,
+      required: [true, "Please Enter Your Blog Subcategory"],
     },
     tags: {
-        type: [String],
-        required: [true, "Please Enter Your Blog Tags"],
+      type: [String],
+      required: [true, "Please Enter Your Blog Tags"],
     },
     thumbnail: FileSchema,
     author: {
-        type: Schema.Types.ObjectId,
-        ref: "Admin",
-        required: true,
+      type: Schema.Types.ObjectId,
+      ref: "Admin",
+      required: true,
     },
-}, {
+  },
+  {
     timestamps: true,
-});
+  }
+);
 
 export default model("Blog", BlogSchema);
