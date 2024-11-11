@@ -152,10 +152,17 @@ export const deleteSubCategory = async (req, res, next) => {
 export const getAllCategories = async (req, res, next) => {
   try {
     const categories = await categoryModel.find();
-    console.log(categories, "Hello")
-    res.status(200).json(categories);
+
+    const categoriesWithSubCategoryNames = categories.map(category => {
+      return {
+        _id: category._id,
+        name: category.name,
+        subCategoryNames: category.subCategory.map(sub => sub.name)
+      };
+    });
+
+    res.status(200).json(categoriesWithSubCategoryNames);
   } catch (error) {
     return next(new ErrorHandler(`Error fetching categories: ${error.message}`, 500));
   }
 }
-
