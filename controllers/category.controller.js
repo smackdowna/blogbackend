@@ -50,22 +50,21 @@ export const processCategory = async (categoryName, subCategoryName) => {
 
 export const fetchBlogsByCategoryAndSubCategory = async (req, res, next) => {
 
-  const { categoryName } = req.body;
+  const { category } = req.query;
 
-
-  if (!categoryName) {
+  if (!category) {
     return res.status(400).json({ error: "Category name and Subcategory name are required" });
   }
 
 
-  const category = await categoryModel.findOne({ name: categoryName });
-  if (!category) {
+  const categoryData = await categoryModel.findOne({ name: category });
+  if (!categoryData) {
     return res.status(404).json({ error: "Category not found" });
   }
 
 
   const blogs = await blogModel.find({
-    category: category._id.toString(),
+    category: categoryData._id.toString(),
   }).populate("author", "name email")
     .populate("category", "name");
 
