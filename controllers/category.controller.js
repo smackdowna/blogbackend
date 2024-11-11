@@ -50,8 +50,8 @@ export const processCategory = async (categoryName, subCategoryName) => {
 
 export const fetchBlogsByCategoryAndSubCategory = async (req, res, next) => {
 
-  const { category } = req.query;
-
+  const category = req.params.category;
+  console.log(category, "Hello")
   if (!category) {
     return res.status(400).json({ error: "Category name and Subcategory name are required" });
   }
@@ -147,3 +147,15 @@ export const deleteSubCategory = async (req, res, next) => {
     return next(new ErrorHandler(`Error deleting subcategory: ${error.message}`, 500));
   }
 };
+
+
+export const getAllCategories = async (req, res, next) => {
+  try {
+    const categories = await categoryModel.find();
+    console.log(categories, "Hello")
+    res.status(200).json(categories);
+  } catch (error) {
+    return next(new ErrorHandler(`Error fetching categories: ${error.message}`, 500));
+  }
+}
+
