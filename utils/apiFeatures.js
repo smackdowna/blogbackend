@@ -78,10 +78,8 @@ class ApiFeatures {
             };
         }
 
-        console.log("Search Query:", searchQuery); // Debugging to check the search query
 
         this.query = this.query.find(searchQuery);
-        console.log("Query:", this.query); // Debugging to check the query
         return this;
     }
     filter() {
