@@ -1,23 +1,29 @@
 import mongoose from "mongoose";
 
-const categoryModel = new mongoose.Schema({
+const subCategorySchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, "Please enter the category name"],
+    required: [true, "Please enter the subcategory name"],
     trim: true,
-    unique: true,
   },
-  subCategory: [
-    {
-      name: {
-        type: String,
-        required: [true, "Please enter the subcategory name"],
-        trim: true,
-      },
+});
+
+const categoryModel = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, "Please enter the category name"],
+      trim: true,
+      unique: true,
     },
-  ],
-}, {
-  timestamps: true,
-})
+    description: {
+      type: String,
+    },
+    subCategory: [subCategorySchema],
+  },
+  {
+    timestamps: true,
+  }
+);
 
 export default mongoose.model("Category", categoryModel);

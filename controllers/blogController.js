@@ -5,58 +5,58 @@ import getDataUri from "../utils/dataUri.js";
 import ErrorHandler from "../utils/errorhandler.js";
 import { processTags } from "../utils/tags.js";
 import { deleteImage, uploadImage } from "../utils/uploadImage.js";
-import { processCategory } from "./category.controller.js";
-
+import categoryModel from "../models/category.model.js";
+import { processBlogsWithSubCategory } from "./category.controller.js";
 
 
 export const createBlog = catchAsyncErrors(async (req, res, next) => {
-  const { title, metaDescription, content, category, subcategory, tags } = req.body;
+  const { title, metaDescription, content, category, subCategory, tags } = req.body;
 
-  if (!title || !metaDescription || !content || !category || !subcategory || !tags) {
-    return next(new ErrorHandler("Please fill in all fields", 400));
+
+  if (!title || !metaDescription || !content || !category || !subCategory || !tags) {
+    return next(new ErrorHandler("All required fields must be filled", 400));
   }
-
   if (!req.file) {
     return next(new ErrorHandler("Please upload a thumbnail", 400));
   }
+  const categoryData = await categoryModel.findById(category);
+  if (!categoryData) {
+    return next(new ErrorHandler("Category not found", 404));
+  }
 
 
+
+  const subCategoryData = categoryData.subCategory.id(subCategory); // Check embedded subcategory
+  if (!subCategoryData) {
+    return next(new ErrorHandler("Subcategory not found in the selected category", 404));
+  }
   const thumbnail = await uploadImage(
     getDataUri(req.file).content,
     getDataUri(req.file).fileName,
     "blog-thumbnails"
   );
 
-
-  const { categoryId, subCategoryName } = await processCategory(
-    category.trim(),
-    subcategory.trim()
-  );
-
-
+  console.log(thumbnail, "thumbnail");
   const modifiedTags = processTags(tags);
-
-
-  const newBlog = new blogModel({
+  const blog = new blogModel({
     title,
     metaDescription,
     content,
-    category: categoryId,
-    subCategory: subCategoryName,
+    category,
+    subCategory,
     tags: modifiedTags,
     thumbnail,
     author: res.locals.admin.id,
   });
 
-  await newBlog.save();
-  await newBlog.populate("category", "name");
-
+  await blog.save();
   res.status(201).json({
     success: true,
     message: "Blog created successfully",
-    data: newBlog,
+    blog,
   });
 });
+
 export const getAllBlogs = catchAsyncErrors(async (req, res, next) => {
   const resultPerPage = 15;
   const currentPage = Number(req.query.page) || 1;
@@ -64,20 +64,18 @@ export const getAllBlogs = catchAsyncErrors(async (req, res, next) => {
   const baseQuery = blogModel
     .find()
     .populate("author", "full_name")
-    .sort({ createdAt: -1 });
+    .populate("category", "name subCategory");
 
   const apiFeature = new ApiFeatures(baseQuery, req.query).search().filter();
 
-
   const filteredBlogsCount = await blogModel.countDocuments(apiFeature.query);
-
 
   apiFeature.pagination(resultPerPage);
 
-
   const blogs = await apiFeature.query;
 
-
+  // Map over the blogs to replace the subCategory ID with the actual subcategory name
+  const processedBlogs = processBlogsWithSubCategory(blogs);
   const totalBlogsCount = await blogModel.estimatedDocumentCount();
 
   res.status(200).json({
@@ -87,23 +85,24 @@ export const getAllBlogs = catchAsyncErrors(async (req, res, next) => {
     resultPerPage,
     currentPage,
     totalPages: Math.ceil(filteredBlogsCount / resultPerPage),
-    data: blogs,
+    data: processedBlogs,
   });
 });
 
 export const singleBlog = catchAsyncErrors(async (req, res, next) => {
   const blog = await blogModel
     .findById(req.params.id)
-    .populate("category", "name ")
-    .populate("author", "name ");
+    .populate("author", "full_name")
+    .populate("category", "name subCategory");
 
   if (!blog) {
     return next(new ErrorHandler("Blog not found", 404));
   }
+  const processedBlog = processBlogsWithSubCategory(blog);
 
   res.status(200).json({
     success: true,
-    data: blog,
+    data: processedBlog,
   });
 });
 
@@ -132,9 +131,9 @@ export const deleteBlog = catchAsyncErrors(async (req, res, next) => {
 });
 export const updateBlog = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
-  const { title, metaDescription, content, category, subcategory, tags } = req.body;
+  const { title, metaDescription, content, category, subCategory, tags } = req.body;
   const authorId = res.locals.admin.id;
-
+  console.log(subCategory, "subCategory");
 
   const blog = await blogModel.findById(id);
   if (!blog) {
@@ -153,15 +152,34 @@ export const updateBlog = catchAsyncErrors(async (req, res, next) => {
   if (content) updateFields.content = content;
 
 
-  if (category || subcategory) {
-    const { categoryId, subCategoryName } = await processCategory(
-      category,
-      subcategory
-    );
+  if (category || subCategory) {
+    let categoryData;
+    if (category) {
+      categoryData = await categoryModel.findById(category);
+      if (!categoryData) {
+        return next(new ErrorHandler("Category not found", 404));
+      }
+      updateFields.category = category;
+    }
 
-    updateFields.category = categoryId;
-    updateFields.subCategory = subCategoryName;
+    if (subCategory) {
+      if (!category) {
+        return next(new ErrorHandler("Please provide category while updating subcategory", 400));
+      }
+
+      // Ensure the category data is available and subCategory exists in the category
+      const subCategoryData = categoryData.subCategory.find(
+        (sub) => sub._id.toString() === subCategory.toString()
+      );
+
+      if (!subCategoryData) {
+        return next(new ErrorHandler("Subcategory not found in the selected category", 404));
+      }
+
+      updateFields.subCategory = subCategory; // Add subcategory to updateFields
+    }
   }
+
   if (tags) {
     updateFields.tags = processTags(tags);
   }
