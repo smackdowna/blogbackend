@@ -176,6 +176,46 @@ export const getAllCategories = async (req, res, next) => {
     return next(new ErrorHandler(`Error fetching categories: ${error.message}`, 500));
   }
 };
+export const fetchBlogsBySubCategory = async (req, res, next) => {
+  const { category, subCategory } = req.params;
+  if (!category || !subCategory) {
+    return res.status(400).json({ error: "Category and subcategory names are required" });
+  }
+
+  // Find the category document by name
+  const categoryData = await categoryModel.findOne({ name: category });
+  if (!categoryData) {
+    return res.status(404).json({ error: "Category not found" });
+  }
+
+  // Check if the subcategory exists in the category
+  const subCategoryData = categoryData.subCategory.find(
+    (sub) => sub.name.toLowerCase() === subCategory.toLowerCase()
+  );
+  if (!subCategoryData) {
+    return res.status(404).json({ error: "Subcategory not found in this category" });
+  }
+
+  // Fetch the blogs that match the category and subcategory
+  const blogs = await blogModel.find({
+    category: categoryData._id.toString(),
+    subCategory: subCategoryData._id.toString(),
+  })
+    .populate("author", "full_name")
+    .populate("category", "name subCategory");
+
+  // If no blogs are found, return a 404 response
+  if (blogs.length === 0) {
+    return res.status(404).json({ message: "No blogs found for this subcategory" });
+  }
+  const modifiedBlogs = processBlogsWithSubCategory(blogs);
+
+  // Return the blogs in the response
+  res.status(200).json({
+    success: true,
+    blogs: modifiedBlogs,
+  });
+};
 
 // ! Some utility functions
 export const processBlogsWithSubCategory = (blogs) => {
