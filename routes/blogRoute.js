@@ -2,7 +2,7 @@ import express from "express";
 import { createBlog, deleteBlog, getAllBlogs, singleBlog, updateBlog } from "../controllers/blogController.js";
 import { isAuthenticatedAdmin } from "../middlewares/auth.js";
 import singleUpload from "../middlewares/multer.js";
-import { createCategoryAndSubCategory, deleteCategory, deleteSubCategory, fetchBlogsByCategory, getAllCategories } from "../controllers/category.controller.js";
+import { createCategoryAndSubCategory, deleteCategory, deleteSubCategory, fetchBlogsByCategory, fetchBlogsBySubCategory, getAllCategories } from "../controllers/category.controller.js";
 
 
 const router = express.Router();
@@ -18,6 +18,8 @@ router.route("/category").get(getAllCategories);
 router.route("/blog/category/:category").get(fetchBlogsByCategory);
 router.route("/category/:category").delete(isAuthenticatedAdmin, deleteCategory);
 router.route("/category/:categoryId/subcategory/:subCategoryId").delete(isAuthenticatedAdmin, deleteSubCategory);
+router.get("/blogs/:category/:subCategory", fetchBlogsBySubCategory);
+
 
 
 export default router;
