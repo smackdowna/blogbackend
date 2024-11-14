@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { FileSchema } from "./file.model.js";
 
 const subCategorySchema = new mongoose.Schema({
   name: {
@@ -17,7 +18,13 @@ const categoryModel = new mongoose.Schema(
       unique: true,
     },
     description: {
-      type: String,
+      type: [String],
+      required: [true, "Please enter the category description"], // Make description required
+    },
+
+    thumbnail: {
+      type: FileSchema,
+
     },
     subCategory: [subCategorySchema],
   },
