@@ -7,66 +7,93 @@ import getDataUri from "../utils/dataUri.js";
 
 export const createCategoryAndSubCategory = catchAsyncErrors(async (req, res, next) => {
   const { category, subCategory, description } = req.body;
-
   // Validate inputs
-  if (!category) return next(new ErrorHandler("Please enter the category name", 400));
-  if (!description) return next(new ErrorHandler("Please enter the category description", 400));
+  if (!category) return next(new ErrorHandler("Please enter the category name", 400))
   if (!subCategory || subCategory.length === 0) return next(new ErrorHandler("Please enter at least one subcategory", 400));
-  if (!req.file) return next(new ErrorHandler("Please upload a category thumbnail", 400));
-
-  // Check if the category already exists
-  let existingCategory = await categoryModel.findOne({ name: category });
-  let thumbnail;
-
-  // If the category exists and has a thumbnail, delete the old thumbnail
-  if (existingCategory && existingCategory.thumbnail) {
-    await deleteImage(existingCategory.thumbnail.fileId);
+  if (!req.file) {
+    return next(new ErrorHandler("Please upload a thumbnail for the new category", 400));
   }
-
-  // Upload the new thumbnail
-  thumbnail = await uploadImage(
+  if (!description) return next(new ErrorHandler("Please enter the category description", 400));
+  const thumbnail = await uploadImage(
     getDataUri(req.file).content,
     getDataUri(req.file).fileName,
     "blog-categories-banners"
   );
+  const newCategory = new categoryModel({
+    name: category,
+    description,
+    thumbnail,
+    subCategory: subCategory.map((sub) => ({ name: sub })),
+  });
+  await newCategory.save();
+  return res.status(201).json({
+    success: true,
+    message: "Category and subcategories created successfully",
+    category: newCategory,
+  });
+}
+);
 
-  if (existingCategory) {
-    // Add only new subcategories that don’t already exist in the category
-    const newSubCategories = subCategory
-      .filter(sub => !existingCategory.subCategory.some(existingSub => existingSub.name.toLowerCase() === sub.toLowerCase()))
-      .map(sub => ({ name: sub }));
+export const updateCategory = catchAsyncErrors(async (req, res, next) => {
+  const id = req.params.category;
+  const { category, subCategory, description } = req.body;
 
-    if (newSubCategories.length === 0) {
-      return next(new ErrorHandler("All subcategories already exist in this category", 400));
-    }
-
-    // Update the thumbnail and subcategories
-    existingCategory.thumbnail = thumbnail;
-    existingCategory.subCategory.push(...newSubCategories);
-    await existingCategory.save(); // Save the updated category
-
-    return res.status(200).json({
-      success: true,
-      message: "Subcategories added to the existing category",
-      category: existingCategory,
-    });
-  } else {
-    // If category does not exist, create a new category
-    const newCategory = new categoryModel({
-      name: category,
-      description,
-      thumbnail,
-      subCategory: subCategory.map((sub) => ({ name: sub })),
-    });
-
-    await newCategory.save();
-
-    return res.status(201).json({
-      success: true,
-      message: "Category and subcategories created successfully",
-      category: newCategory,
-    });
+  // Find the existing category by ID
+  const existingCategory = await categoryModel.findById(id);
+  if (!existingCategory) {
+    return next(new ErrorHandler("Category not found", 404));
   }
+
+  let updatedFields = {};
+
+  // Update the category name if provided
+  if (category) updatedFields.name = category;
+
+  // Merge new descriptions with existing ones, ensuring no duplicates
+  if (description) {
+    const existingDescriptions = existingCategory.description || [];
+    const newDescriptions = Array.isArray(description) ? description : [description];
+
+    // Combine existing descriptions with new ones, and remove duplicates
+    updatedFields.description = Array.from(new Set([...existingDescriptions, ...newDescriptions]));
+  }
+
+  // Add new subcategories, ensuring no duplicates
+  if (subCategory) {
+    const existingSubCategoryNames = existingCategory.subCategory.map((sub) => sub.name.toLowerCase());
+    const newSubCategories = Array.isArray(subCategory) ? subCategory : [subCategory];
+
+    const filteredNewSubCategories = newSubCategories
+      .map((sub) => sub.name || sub) // Adjust if `subCategory` is an array of objects
+      .filter((sub) => !existingSubCategoryNames.includes(sub.toLowerCase()))
+      .map((sub) => ({ name: sub }));
+
+    updatedFields.subCategory = [...existingCategory.subCategory, ...filteredNewSubCategories];
+  }
+
+  // Handle thumbnail upload if a new file is provided
+  if (req.file) {
+    if (existingCategory.thumbnail) {
+      await deleteImage(existingCategory.thumbnail.fileId);
+    }
+    updatedFields.thumbnail = await uploadImage(
+      getDataUri(req.file).content,
+      getDataUri(req.file).fileName,
+      "blog-categories-banners"
+    );
+  }
+
+  // Update the category with the new fields and return the result
+  const updatedCategory = await categoryModel.findByIdAndUpdate(id, updatedFields, {
+    new: true,
+    runValidators: true,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Category updated successfully",
+    category: updatedCategory,
+  });
 });
 
 

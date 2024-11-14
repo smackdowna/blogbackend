@@ -24,7 +24,7 @@ const categoryModel = new mongoose.Schema(
 
     thumbnail: {
       type: FileSchema,
-      required: true,
+
     },
     subCategory: [subCategorySchema],
   },
