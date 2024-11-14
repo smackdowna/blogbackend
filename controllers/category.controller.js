@@ -14,11 +14,16 @@ export const createCategoryAndSubCategory = catchAsyncErrors(async (req, res, ne
     return next(new ErrorHandler("Please upload a thumbnail for the new category", 400));
   }
   if (!description) return next(new ErrorHandler("Please enter the category description", 400));
+  const existingCategory = await categoryModel.findOne({ name: category });
+  if (existingCategory) {
+    return next(new ErrorHandler("Category already exists with the same title", 400));
+  }
   const thumbnail = await uploadImage(
     getDataUri(req.file).content,
     getDataUri(req.file).fileName,
     "blog-categories-banners"
   );
+
   const newCategory = new categoryModel({
     name: category,
     description,
