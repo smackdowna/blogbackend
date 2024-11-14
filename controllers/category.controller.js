@@ -2,18 +2,33 @@ import categoryModel from "../models/category.model.js";
 import blogModel from "../models/blog.model.js";
 import ErrorHandler from "../utils/errorhandler.js";
 import catchAsyncErrors from "../middlewares/catchAsyncError.js";
+import { deleteImage, uploadImage } from "../utils/uploadImage.js";
+import getDataUri from "../utils/dataUri.js";
 
 export const createCategoryAndSubCategory = catchAsyncErrors(async (req, res, next) => {
-  const { category, subCategory } = req.body;
+  const { category, subCategory, description } = req.body;
 
-  if (!category) {
-    return next(new ErrorHandler("Please enter the category name", 400));
-  }
-  if (!subCategory || subCategory.length === 0) {
-    return next(new ErrorHandler("Please enter at least one subcategory", 400));
-  }
+  // Validate inputs
+  if (!category) return next(new ErrorHandler("Please enter the category name", 400));
+  if (!description) return next(new ErrorHandler("Please enter the category description", 400));
+  if (!subCategory || subCategory.length === 0) return next(new ErrorHandler("Please enter at least one subcategory", 400));
+  if (!req.file) return next(new ErrorHandler("Please upload a category thumbnail", 400));
 
+  // Check if the category already exists
   let existingCategory = await categoryModel.findOne({ name: category });
+  let thumbnail;
+
+  // If the category exists and has a thumbnail, delete the old thumbnail
+  if (existingCategory && existingCategory.thumbnail) {
+    await deleteImage(existingCategory.thumbnail.fileId);
+  }
+
+  // Upload the new thumbnail
+  thumbnail = await uploadImage(
+    getDataUri(req.file).content,
+    getDataUri(req.file).fileName,
+    "blog-categories-banners"
+  );
 
   if (existingCategory) {
     // Add only new subcategories that don’t already exist in the category
@@ -25,11 +40,12 @@ export const createCategoryAndSubCategory = catchAsyncErrors(async (req, res, ne
       return next(new ErrorHandler("All subcategories already exist in this category", 400));
     }
 
-    // Add new subcategories and save the updated category
+    // Update the thumbnail and subcategories
+    existingCategory.thumbnail = thumbnail;
     existingCategory.subCategory.push(...newSubCategories);
-    await existingCategory.save();
+    await existingCategory.save(); // Save the updated category
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Subcategories added to the existing category",
       category: existingCategory,
@@ -38,18 +54,21 @@ export const createCategoryAndSubCategory = catchAsyncErrors(async (req, res, ne
     // If category does not exist, create a new category
     const newCategory = new categoryModel({
       name: category,
+      description,
+      thumbnail,
       subCategory: subCategory.map((sub) => ({ name: sub })),
     });
 
     await newCategory.save();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Category and subcategories created successfully",
       category: newCategory,
     });
   }
 });
+
 
 
 export const fetchBlogsByCategory = async (req, res, next) => {
@@ -103,7 +122,9 @@ export const deleteCategory = async (req, res, next) => {
         )
       );
     }
-
+    if (category.thumbnail) {
+      await deleteImage(category.thumbnail.fileId);
+    }
     await category.deleteOne();
     res.status(200).json({
       success: true,
@@ -164,10 +185,12 @@ export const getAllCategories = async (req, res, next) => {
       return {
         _id: category._id,
         name: category.name,
+        description: category.description,
         subCategories: category.subCategory.map(sub => ({
           _id: sub._id,
           name: sub.name
-        }))
+        })),
+        thumbnail: category.thumbnail
       };
     });
 

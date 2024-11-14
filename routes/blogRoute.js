@@ -13,7 +13,7 @@ router.route("/blog/:id").put(isAuthenticatedAdmin, singleUpload, updateBlog);
 router.route("/blog/:id").delete(isAuthenticatedAdmin, deleteBlog);
 router.route("/blog").get(getAllBlogs);
 router.route("/blog/:id").get(singleBlog);
-router.route("/category/create").post(isAuthenticatedAdmin, createCategoryAndSubCategory);
+router.route("/category/create").post(isAuthenticatedAdmin, singleUpload, createCategoryAndSubCategory);
 router.route("/category").get(getAllCategories);
 router.route("/blog/category/:category").get(fetchBlogsByCategory);
 router.route("/category/:category").delete(isAuthenticatedAdmin, deleteCategory);
