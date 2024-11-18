@@ -18,7 +18,7 @@ const categoryModel = new mongoose.Schema(
       unique: true,
     },
     description: {
-      type: String,
+      type: [String],
       required: [true, "Please enter the category description"], // Make description required
     },
 
