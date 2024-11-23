@@ -233,6 +233,26 @@ export const getAllCategories = async (req, res, next) => {
     return next(new ErrorHandler(`Error fetching categories: ${error.message}`, 500));
   }
 };
+
+
+
+//get single controller
+export const getacategory = async(req,res,next)=>{
+  try {
+    const category = await categoryModel.findOne({name:req.params.name});
+    if (!category) return next(new ErrorHandler("category not found", 400));
+
+    res.status(200).json({
+      success: true,
+      category,
+    });
+  } catch (error) {
+    return next(new ErrorHandler(`Error fetching categories: ${error.message}`, 500));
+  }
+}
+
+
+
 export const fetchBlogsBySubCategory = async (req, res, next) => {
   const { category, subCategory } = req.params;
   if (!category || !subCategory) {
