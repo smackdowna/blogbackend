@@ -18,6 +18,8 @@ export const createCategoryAndSubCategory = catchAsyncErrors(async (req, res, ne
   if (existingCategory) {
     return next(new ErrorHandler("Category already exists with the same title", 400));
   }
+  console.log(req.body, "he;llo")
+  console.log(description, "he;llo")
   const thumbnail = await uploadImage(
     getDataUri(req.file).content,
     getDataUri(req.file).fileName,
